@@ -1,0 +1,107 @@
+jenkins:
+  systemMessage: "Jenkins Dashboard Test Environment - SCB POC"
+  numExecutors: 2
+  mode: NORMAL
+
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "admin123"
+        - id: "dashboard-bot"
+          password: "dashboard123"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+  crumbIssuer:
+    standard:
+      excludeClientIPFromCrumb: true
+
+unclassified:
+  location:
+    url: "http://localhost:8080/"
+
+jobs:
+  - script: >
+      pipelineJob('sample-frontend-app') {
+        description('Sample frontend deployment job')
+        parameters {
+          stringParam('BRANCH', 'main', 'Branch to deploy')
+          stringParam('TAG', 'v1.0.0', 'Version tag')
+          choiceParam('ENVIRONMENT', ['dev', 'staging', 'prod'], 'Target env')
+        }
+        definition {
+          cps {
+            script('''
+              pipeline {
+                agent any
+                stages {
+                  stage('Build') {
+                    steps {
+                      echo "Building branch: ${params.BRANCH}"
+                      echo "Tag: ${params.TAG}"
+                      sh 'sleep 3'
+                    }
+                  }
+                  stage('Deploy') {
+                    steps {
+                      echo "Deploying to ${params.ENVIRONMENT}"
+                      sh 'sleep 2'
+                    }
+                  }
+                }
+              }
+            '''.stripIndent())
+            sandbox(true)
+          }
+        }
+      }
+
+  - script: >
+      pipelineJob('sample-backend-api') {
+        description('Sample backend API deployment')
+        parameters {
+          stringParam('BRANCH', 'develop', 'Branch to deploy')
+          stringParam('TAG', 'v2.1.0', 'Version tag')
+        }
+        definition {
+          cps {
+            script('''
+              pipeline {
+                agent any
+                stages {
+                  stage('Test') { steps { sh 'sleep 2' } }
+                  stage('Build') { steps { sh 'sleep 3' } }
+                  stage('Deploy') { steps { echo "Done" } }
+                }
+              }
+            '''.stripIndent())
+            sandbox(true)
+          }
+        }
+      }
+
+  - script: >
+      pipelineJob('sample-mobile-app') {
+        description('Mobile app build')
+        parameters {
+          stringParam('BRANCH', 'release/2.0', 'Release branch')
+          stringParam('TAG', 'v2.0.0-rc1', 'RC tag')
+        }
+        definition {
+          cps {
+            script('''
+              pipeline {
+                agent any
+                stages {
+                  stage('Build') { steps { sh 'sleep 4' } }
+                }
+              }
+            '''.stripIndent())
+            sandbox(true)
+          }
+        }
+      }

@@ -1,0 +1,71 @@
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard/Dockerfile.dev
+    container_name: jenkins-dashboard-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./next.config.js:/app/next.config.js
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./tailwind.config.ts:/app/tailwind.config.ts
+      - ./postcss.config.mjs:/app/postcss.config.mjs
+      - ./package.json:/app/package.json
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - JENKINS_URL=http://jenkins:8080
+      - JENKINS_USER=${JENKINS_USER:-admin}
+      - JENKINS_API_TOKEN=${JENKINS_API_TOKEN:-admin123}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      jenkins:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - jenkins-net
+
+  jenkins:
+    build:
+      context: ./docker/jenkins
+      dockerfile: Dockerfile
+    container_name: jenkins-server
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs/jenkins.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/login || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+    networks:
+      - jenkins-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: jenkins-dashboard-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - jenkins-net
+
+volumes:
+  jenkins_home:
+  redis_data:
+
+networks:
+  jenkins-net:
+    driver: bridge
